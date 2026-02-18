@@ -1,9 +1,9 @@
 # Ingress (AWS ALB with Route53 Domain)
 # 
-# BEFORE DEPLOYING:
-# 1. Replace <ACM_CERTIFICATE_ARN> with your ACM certificate ARN for learnaws.today
-#    Get it from: aws acm list-certificates --region ap-south-1
-# 2. Ensure your Route53 hosted zone exists for learnaws.today
+# Verified Configuration:
+# 1. ACM Certificate: arn:aws:acm:ap-south-1:796796207873:certificate/85e2ffb5-c48d-4c59-82e8-86748d9949f6
+# 2. Domain: raghu.buzz (with wildcard *.raghu.buzz)
+# 3. Route53 hosted zone for raghu.buzz
 #
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -19,7 +19,7 @@ metadata:
     # HTTPS/SSL Configuration
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     alb.ingress.kubernetes.io/ssl-redirect: "443"
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:982424467695:certificate/3bd1885f-1ece-472c-9abf-a2d263ae5cbb
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:796796207873:certificate/85e2ffb5-c48d-4c59-82e8-86748d9949f6
     
     # Health Check Configuration
     alb.ingress.kubernetes.io/healthcheck-path: /health
@@ -31,12 +31,12 @@ metadata:
     alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=60
     
     # External DNS (auto-creates Route53 record)
-    external-dns.alpha.kubernetes.io/hostname: learnaws.today,www.learnaws.today
+    external-dns.alpha.kubernetes.io/hostname: raghu.buzz,www.raghu.buzz
 spec:
   ingressClassName: alb
   rules:
   # Main domain
-  - host: learnaws.today
+  - host: raghu.buzz
     http:
       paths:
       - path: /api/auth
@@ -75,7 +75,7 @@ spec:
             port:
               number: 80
   # WWW subdomain
-  - host: www.learnaws.today
+  - host: www.raghu.buzz
     http:
       paths:
       - path: /

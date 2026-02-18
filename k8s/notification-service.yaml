@@ -5,7 +5,7 @@ metadata:
   name: notification-service-sa
   namespace: task-management
   annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::982424467695:role/TaskManagementSESRole
+    eks.amazonaws.com/role-arn: arn:aws:iam::796796207873:role/TaskManagementSESRole
 
 ---
 apiVersion: apps/v1
@@ -30,7 +30,7 @@ spec:
         command: ['sh', '-c', 'until nc -z redis-service 6379; do echo "Waiting for Redis..."; sleep 2; done; echo "Redis is ready!"']
       containers:
       - name: notification-service
-        image: 982424467695.dkr.ecr.ap-south-1.amazonaws.com/task-management/notification-service:latest
+        image: 796796207873.dkr.ecr.ap-south-1.amazonaws.com/task-management/notification-service:latest
         ports:
         - containerPort: 3003
         env:
@@ -50,9 +50,9 @@ spec:
         - name: EMAIL_PROVIDER
           value: "ses"
         - name: SES_FROM_EMAIL
-          value: "avizway@gmail.com"
+          value: "kongalaraghu406@gmail.com"
         - name: TASK_OWNER_EMAIL
-          value: "avizway@gmail.com"
+          value: "kongalaraghu406@gmail.com"
         - name: AWS_REGION
           value: "ap-south-1"
         resources:

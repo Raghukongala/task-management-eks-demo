@@ -19,7 +19,7 @@ spec:
         command: ['sh', '-c', 'until nc -z postgres-service 5432; do echo "Waiting for PostgreSQL..."; sleep 2; done; echo "PostgreSQL is ready!"']
       containers:
       - name: task-service
-        image: 982424467695.dkr.ecr.ap-south-1.amazonaws.com/task-management/task-service:latest
+        image: 796796207873.dkr.ecr.ap-south-1.amazonaws.com/task-management/task-service:latest
         ports:
         - containerPort: 3002
         env:

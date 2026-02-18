@@ -19,7 +19,7 @@ spec:
         command: ['sh', '-c', 'until nc -z mongodb-service 27017; do echo "Waiting for MongoDB..."; sleep 2; done; echo "MongoDB is ready!"']
       containers:
       - name: user-service
-        image: 982424467695.dkr.ecr.ap-south-1.amazonaws.com/task-management/user-service:latest
+        image: 796796207873.dkr.ecr.ap-south-1.amazonaws.com/task-management/user-service:latest
         ports:
         - containerPort: 3001
         env:

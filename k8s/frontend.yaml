@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: 982424467695.dkr.ecr.ap-south-1.amazonaws.com/task-management/frontend:latest
+        image: 796796207873.dkr.ecr.ap-south-1.amazonaws.com/task-management/frontend:latest
         ports:
         - containerPort: 80
         resources:

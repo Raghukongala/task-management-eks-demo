@@ -1,18 +1,17 @@
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Federated": "arn:aws:iam::982424467695:oidc-provider/oidc.eks.ap-south-1.amazonaws.com/id/39988A0C96597AC9793F0BFA9DDB4065"
-      },
-      "Action": "sts:AssumeRoleWithWebIdentity",
-      "Condition": {
-        "StringEquals": {
-          "oidc.eks.ap-south-1.amazonaws.com/id/39988A0C96597AC9793F0BFA9DDB4065:aud": "sts.amazonaws.com",
-          "oidc.eks.ap-south-1.amazonaws.com/id/39988A0C96597AC9793F0BFA9DDB4065:sub": "system:serviceaccount:task-management:notification-service-sa"
-        }
-      }
-    }
-  ]
+﻿{
+    "Version":  "2012-10-17",
+    "Statement":  [
+                      {
+                          "Effect":  "Allow",
+                          "Principal":  {
+                                            "Federated":  "arn:aws:iam::-provider/oidc.eks.ap-south-1.amazonaws.com/id/AFED7F7CCF39E8DA0D7D820C0ECBF0C4"
+                                        },
+                          "Condition":  {
+                                            "StringEquals":  {
+                                                                 "":  "system:serviceaccount:task-management:notification-service-sa"
+                                                             }
+                                        },
+                          "Action":  "sts:AssumeRoleWithWebIdentity"
+                      }
+                  ]
 }

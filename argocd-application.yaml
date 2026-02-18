@@ -7,8 +7,8 @@ spec:
   project: default
   
   source:
-    repoURL: https://github.com/YOUR_USERNAME/YOUR_REPO.git  # Update with your Git repo URL
-    targetRevision: main  # or master, depending on your default branch
+    repoURL: https://github.com/avizway1/task-management-eks-demo.git
+    targetRevision: main
     path: k8s
   
   destination:
