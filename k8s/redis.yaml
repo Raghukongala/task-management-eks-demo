@@ -4,7 +4,7 @@ metadata:
   name: redis
   namespace: task-management
 spec:
-  replicas: 4
+  replicas: 3
   selector:
     matchLabels:
       app: redis
