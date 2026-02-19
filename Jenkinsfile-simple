@@ -1,0 +1,166 @@
+pipeline {
+    agent any
+    
+    environment {
+        AWS_REGION = 'ap-south-1'
+        AWS_ACCOUNT_ID = '796796207873'
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        EKS_CLUSTER_NAME = 'raghu-eks-cluster'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code...'
+                checkout scm
+                script {
+                    env.BUILD_TAG = "${env.BUILD_NUMBER}"
+                }
+            }
+        }
+        
+        stage('Build Frontend') {
+            steps {
+                echo 'Building Frontend...'
+                sh '''
+                    cd frontend
+                    docker build -t ${ECR_REGISTRY}/task-management/frontend:${BUILD_TAG} .
+                    docker tag ${ECR_REGISTRY}/task-management/frontend:${BUILD_TAG} ${ECR_REGISTRY}/task-management/frontend:latest
+                '''
+            }
+        }
+        
+        stage('Build User Service') {
+            steps {
+                echo 'Building User Service...'
+                sh '''
+                    cd user-service
+                    docker build -t ${ECR_REGISTRY}/task-management/user-service:${BUILD_TAG} .
+                    docker tag ${ECR_REGISTRY}/task-management/user-service:${BUILD_TAG} ${ECR_REGISTRY}/task-management/user-service:latest
+                '''
+            }
+        }
+        
+        stage('Build Task Service') {
+            steps {
+                echo 'Building Task Service...'
+                sh '''
+                    cd task-service
+                    docker build -t ${ECR_REGISTRY}/task-management/task-service:${BUILD_TAG} .
+                    docker tag ${ECR_REGISTRY}/task-management/task-service:${BUILD_TAG} ${ECR_REGISTRY}/task-management/task-service:latest
+                '''
+            }
+        }
+        
+        stage('Build Notification Service') {
+            steps {
+                echo 'Building Notification Service...'
+                sh '''
+                    cd notification-service
+                    docker build -t ${ECR_REGISTRY}/task-management/notification-service:${BUILD_TAG} .
+                    docker tag ${ECR_REGISTRY}/task-management/notification-service:${BUILD_TAG} ${ECR_REGISTRY}/task-management/notification-service:latest
+                '''
+            }
+        }
+        
+        stage('Login to ECR') {
+            steps {
+                echo 'Logging into ECR...'
+                sh '''
+                    aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                '''
+            }
+        }
+        
+        stage('Push Images to ECR') {
+            steps {
+                echo 'Pushing images to ECR...'
+                sh '''
+                    docker push ${ECR_REGISTRY}/task-management/frontend:${BUILD_TAG}
+                    docker push ${ECR_REGISTRY}/task-management/frontend:latest
+                    
+                    docker push ${ECR_REGISTRY}/task-management/user-service:${BUILD_TAG}
+                    docker push ${ECR_REGISTRY}/task-management/user-service:latest
+                    
+                    docker push ${ECR_REGISTRY}/task-management/task-service:${BUILD_TAG}
+                    docker push ${ECR_REGISTRY}/task-management/task-service:latest
+                    
+                    docker push ${ECR_REGISTRY}/task-management/notification-service:${BUILD_TAG}
+                    docker push ${ECR_REGISTRY}/task-management/notification-service:latest
+                '''
+            }
+        }
+        
+        stage('Update Kubeconfig') {
+            steps {
+                echo 'Updating kubeconfig...'
+                sh '''
+                    aws eks update-kubeconfig --name ${EKS_CLUSTER_NAME} --region ${AWS_REGION}
+                '''
+            }
+        }
+        
+        stage('Deploy to EKS') {
+            steps {
+                echo 'Deploying to EKS...'
+                sh '''
+                    # Update image tags in deployment
+                    sed -i "s|image: .*task-management/frontend.*|image: ${ECR_REGISTRY}/task-management/frontend:${BUILD_TAG}|g" k8s-deployment.yaml
+                    sed -i "s|image: .*task-management/user-service.*|image: ${ECR_REGISTRY}/task-management/user-service:${BUILD_TAG}|g" k8s-deployment.yaml
+                    sed -i "s|image: .*task-management/task-service.*|image: ${ECR_REGISTRY}/task-management/task-service:${BUILD_TAG}|g" k8s-deployment.yaml
+                    sed -i "s|image: .*task-management/notification-service.*|image: ${ECR_REGISTRY}/task-management/notification-service:${BUILD_TAG}|g" k8s-deployment.yaml
+                    
+                    # Apply deployment
+                    kubectl apply -f k8s-deployment.yaml
+                    
+                    # Wait for rollout
+                    kubectl rollout status deployment/frontend -n task-management --timeout=5m
+                    kubectl rollout status deployment/user-service -n task-management --timeout=5m
+                    kubectl rollout status deployment/task-service -n task-management --timeout=5m
+                    kubectl rollout status deployment/notification-service -n task-management --timeout=5m
+                '''
+            }
+        }
+        
+        stage('Verify Deployment') {
+            steps {
+                echo 'Verifying deployment...'
+                sh '''
+                    echo "=== Pods ==="
+                    kubectl get pods -n task-management
+                    
+                    echo "=== Services ==="
+                    kubectl get svc -n task-management
+                    
+                    echo "=== Ingress ==="
+                    kubectl get ingress -n task-management
+                '''
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo '✅ Deployment successful!'
+            script {
+                sh '''
+                    echo "Application deployed successfully!"
+                    echo "Check your application at: https://raghu.buzz"
+                '''
+            }
+        }
+        failure {
+            echo '❌ Deployment failed!'
+            script {
+                sh '''
+                    echo "Deployment failed. Checking pod status..."
+                    kubectl get pods -n task-management || echo "Unable to fetch pods"
+                '''
+            }
+        }
+        always {
+            echo 'Cleaning up workspace...'
+            cleanWs()
+        }
+    }
+}
