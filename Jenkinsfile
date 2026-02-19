@@ -3,8 +3,6 @@ pipeline {
     
     environment {
         AWS_REGION = 'ap-south-1'
-        AWS_ACCOUNT_ID = credentials('aws-account-id')
-        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         EKS_CLUSTER_NAME = 'raghuwitheks'
         DOCKER_BUILDKIT = '1'
         SLACK_CHANNEL = '#deployments'
@@ -12,50 +10,38 @@ pipeline {
     }
     
     stages {
-        stage('Checkout') {
+        stage('Setup') {
             steps {
                 script {
-                    // Send build start notification
-                    slackSend(
-                        channel: env.SLACK_CHANNEL,
-                        color: '#439FE0',
-                        message: """
-                            🚀 *Deployment Started*
-                            *Job:* ${env.JOB_NAME}
-                            *Build:* #${env.BUILD_NUMBER}
-                            *Started by:* ${env.BUILD_USER ?: 'Jenkins'}
-                            *Branch:* ${env.GIT_BRANCH ?: 'main'}
-                        """.stripIndent(),
-                        tokenCredentialId: env.SLACK_CREDENTIAL_ID
-                    )
-                }
-                
-                checkout scm
-                
-                script {
-                    env.GIT_COMMIT_SHORT = sh(
-                        script: "git rev-parse --short HEAD",
+                    // Get AWS Account ID dynamically
+                    env.AWS_ACCOUNT_ID = sh(
+                        script: "aws sts get-caller-identity --query Account --output text",
                         returnStdout: true
                     ).trim()
+                    env.ECR_REGISTRY = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+                    
+                    // Get git info if available
+                    try {
+                        env.GIT_COMMIT_SHORT = sh(
+                            script: "git rev-parse --short HEAD 2>/dev/null || echo 'latest'",
+                            returnStdout: true
+                        ).trim()
+                    } catch (Exception e) {
+                        env.GIT_COMMIT_SHORT = 'latest'
+                    }
+                    
                     env.BUILD_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT_SHORT}"
-                    env.GIT_COMMIT_MSG = sh(
-                        script: "git log -1 --pretty=%B",
-                        returnStdout: true
-                    ).trim()
+                    
+                    echo "AWS Account ID: ${env.AWS_ACCOUNT_ID}"
+                    echo "ECR Registry: ${env.ECR_REGISTRY}"
+                    echo "Build Tag: ${env.BUILD_TAG}"
                 }
             }
         }
         
         stage('Build Docker Images') {
             steps {
-                script {
-                    slackSend(
-                        channel: env.SLACK_CHANNEL,
-                        color: 'good',
-                        message: "🔨 Building Docker images...",
-                        tokenCredentialId: env.SLACK_CREDENTIAL_ID
-                    )
-                }
+                echo "🔨 Building Docker images..."
             }
         }
         
@@ -107,12 +93,7 @@ pipeline {
         stage('Push to ECR') {
             steps {
                 script {
-                    slackSend(
-                        channel: env.SLACK_CHANNEL,
-                        color: 'good',
-                        message: "📦 Pushing images to ECR...",
-                        tokenCredentialId: env.SLACK_CREDENTIAL_ID
-                    )
+                    echo "📦 Pushing images to ECR..."
                     
                     sh """
                         aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
@@ -154,12 +135,7 @@ pipeline {
         stage('Deploy to EKS') {
             steps {
                 script {
-                    slackSend(
-                        channel: env.SLACK_CHANNEL,
-                        color: 'good',
-                        message: "☸️ Deploying to EKS cluster: ${EKS_CLUSTER_NAME}...",
-                        tokenCredentialId: env.SLACK_CREDENTIAL_ID
-                    )
+                    echo "☸️ Deploying to EKS cluster: ${EKS_CLUSTER_NAME}..."
                     
                     sh """
                         # Update image tags in deployment
@@ -207,59 +183,25 @@ pipeline {
                     returnStdout: true
                 ).trim()
                 
-                def duration = currentBuild.durationString.replace(' and counting', '')
-                
-                slackSend(
-                    channel: env.SLACK_CHANNEL,
-                    color: 'good',
-                    message: """
-                        ✅ *Deployment Successful!*
-                        *Job:* ${env.JOB_NAME}
-                        *Build:* #${env.BUILD_NUMBER}
-                        *Commit:* ${env.GIT_COMMIT_SHORT}
-                        *Message:* ${env.GIT_COMMIT_MSG}
-                        *Duration:* ${duration}
-                        *Application URL:* https://raghu.buzz
-                        *ALB URL:* http://${ingressUrl}
-                        
-                        All services deployed and running! 🎉
-                    """.stripIndent(),
-                    tokenCredentialId: env.SLACK_CREDENTIAL_ID
-                )
-                
-                echo "Application URL: http://${ingressUrl}"
-                echo "Domain: https://raghu.buzz"
+                echo """
+                    ✅ Deployment Successful!
+                    Job: ${env.JOB_NAME}
+                    Build: #${env.BUILD_NUMBER}
+                    Commit: ${env.GIT_COMMIT_SHORT}
+                    Application URL: https://raghu.buzz
+                    ALB URL: http://${ingressUrl}
+                """
             }
         }
         
         failure {
             script {
-                def duration = currentBuild.durationString.replace(' and counting', '')
-                def failedStage = currentBuild.rawBuild.getAction(org.jenkinsci.plugins.workflow.actions.ErrorAction.class)?.error?.message ?: 'Unknown'
-                
-                def podStatus = sh(
-                    script: "kubectl get pods -n task-management 2>/dev/null || echo 'Unable to fetch pod status'",
-                    returnStdout: true
-                ).trim()
-                
-                slackSend(
-                    channel: env.SLACK_CHANNEL,
-                    color: 'danger',
-                    message: """
-                        ❌ *Deployment Failed!*
-                        *Job:* ${env.JOB_NAME}
-                        *Build:* #${env.BUILD_NUMBER}
-                        *Commit:* ${env.GIT_COMMIT_SHORT}
-                        *Duration:* ${duration}
-                        *Failed Stage:* ${env.STAGE_NAME ?: 'Unknown'}
-                        
-                        *Pod Status:*
-                        ```${podStatus}```
-                        
-                        Check console output: ${env.BUILD_URL}console
-                    """.stripIndent(),
-                    tokenCredentialId: env.SLACK_CREDENTIAL_ID
-                )
+                echo """
+                    ❌ Deployment Failed!
+                    Job: ${env.JOB_NAME}
+                    Build: #${env.BUILD_NUMBER}
+                    Check console output for details
+                """
                 
                 sh """
                     echo "Pod status:"
@@ -269,45 +211,6 @@ pipeline {
                     kubectl get events -n task-management --sort-by='.lastTimestamp' 2>/dev/null | tail -20 || echo "Unable to fetch events"
                 """
             }
-        }
-        
-        unstable {
-            script {
-                slackSend(
-                    channel: env.SLACK_CHANNEL,
-                    color: 'warning',
-                    message: """
-                        ⚠️ *Deployment Unstable*
-                        *Job:* ${env.JOB_NAME}
-                        *Build:* #${env.BUILD_NUMBER}
-                        
-                        Some tests or checks failed. Please review.
-                        ${env.BUILD_URL}console
-                    """.stripIndent(),
-                    tokenCredentialId: env.SLACK_CREDENTIAL_ID
-                )
-            }
-        }
-        
-        aborted {
-            script {
-                slackSend(
-                    channel: env.SLACK_CHANNEL,
-                    color: 'warning',
-                    message: """
-                        🛑 *Deployment Aborted*
-                        *Job:* ${env.JOB_NAME}
-                        *Build:* #${env.BUILD_NUMBER}
-                        
-                        Build was manually stopped or timed out.
-                    """.stripIndent(),
-                    tokenCredentialId: env.SLACK_CREDENTIAL_ID
-                )
-            }
-        }
-        
-        always {
-            cleanWs()
         }
     }
 }
