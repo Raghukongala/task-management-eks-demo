@@ -5,7 +5,7 @@ pipeline {
         AWS_REGION = 'ap-south-1'
         AWS_ACCOUNT_ID = credentials('aws-account-id')
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-        EKS_CLUSTER_NAME = 'raghu-eks-cluster'
+        EKS_CLUSTER_NAME = 'raghuwitheks'
         DOCKER_BUILDKIT = '1'
         SLACK_CHANNEL = '#deployments'
         SLACK_CREDENTIAL_ID = 'slack-token'

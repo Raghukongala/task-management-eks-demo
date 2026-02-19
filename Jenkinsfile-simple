@@ -5,7 +5,7 @@ pipeline {
         AWS_REGION = 'ap-south-1'
         AWS_ACCOUNT_ID = '796796207873'
         ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-        EKS_CLUSTER_NAME = 'raghu-eks-cluster'
+        EKS_CLUSTER_NAME = 'raghuwitheks'
     }
     
     stages {
